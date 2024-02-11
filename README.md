@@ -1,4 +1,6 @@
 # CPU Scheduling Algorithms
+![image](https://github.com/coderatul/cpu-sheduling/assets/72141859/8efac342-4365-496c-b446-a1644fdc1f7a)
+
 
 This GitHub repository contains Python implementations of various CPU scheduling algorithms. The current implementation includes the First Come First Serve (FCFS) algorithm.
 
@@ -24,8 +26,9 @@ bt = [8, 1, 3, 2, 6]  # burst time
 schedule = CpuScheduling(prcs, at, bt)
 schedule.fcfs()
 ```
-
 ### Output
+![image](https://github.com/coderatul/cpu-sheduling/assets/72141859/4017f4a0-d374-42d4-8e10-6cf3ae622b56)
+
 
 The FCFS algorithm will display the order of process execution, completion time, turn around time, and waiting time in a tabular format.
 
