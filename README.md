@@ -13,7 +13,7 @@ FCFS is a non-preemptive scheduling algorithm that schedules processes based on 
 
 The `CpuScheduling` class is used to represent the CPU scheduling algorithms. The FCFS algorithm is implemented in the `fcfs` method.
 
-*current implementation can only handle unique arrival times*
+*current implementaion can handle arrival time(s) with same value and can detect any halts*
 
 ### Usage
 
