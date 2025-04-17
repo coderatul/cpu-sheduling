@@ -1,144 +1,140 @@
 import copy
+from typing import List, Dict, Tuple, Optional
 import prettytable
-at_prcs_mapping = {} # arrivaltime : [processess]
-bt_at_mapping = {} # burst time : [processess]
 
-class CpuSheduling():
-    def __init__(self, name:list = [], arrival_time:list = [], burst_time:list = [], time_quantum= None) -> None:
-        self.process = name
-        self.arrival_time = arrival_time
-        self.burst_time = burst_time
-        self.time_quantum = time_quantum
-        
-        # checking if every process has a arrival time and burst time
+class CpuSheduling:
+    def __init__(self, prcs: List[str] = [], arrival_time: List[float] = [],
+                 burst_time: List[float] = [], time_quantum: Optional[float] = None) -> None:
+        """
+        Initializes the CPU scheduler with process data.
+
+        Args:
+            prcs: List of process names (e.g., ["P1", "P2"]).
+            arrival_time: List of arrival times for each process.
+            burst_time: List of burst times for each process.
+            time_quantum: Time quantum for Round Robin (optional, unused in FCFS).
+
+        Raises:
+            ValueError: If input lists have mismatched lengths or contain invalid types.
+        """
+        self.process: List[str] = prcs
+        self.arrival_time: List[float] = arrival_time
+        self.burst_time: List[float] = burst_time
+        self.time_quantum: Optional[float] = time_quantum
+        self.at_prcs_mapping: Dict[float, List[Tuple[str, float]]] = {}
+
+        # Validate input lengths
         if len(self.process) != len(self.arrival_time):
-            raise ValueError("Number of process(s) don't match number of arrival time(s) or vice versa")
+            raise ValueError("Number of processes doesn't match number of arrival times")
         if len(self.process) != len(self.burst_time):
-            raise ValueError("Number of process(s) don't match number of burst time(s) or vice versa")
-        
-        # checking if arrival time and burst time are of integer or float type
-        if not all(isinstance(at, (int, float)) for at in self.arrival_time):
-            raise ValueError("arrival time can only have integer/float value(s)")
-        if not all(isinstance(bt, (int, float)) for bt in self.burst_time):
-            raise ValueError("burst time can only have integer/float value(s)")
+            raise ValueError("Number of processes doesn't match number of burst times")
 
-        # displaying processess, arival time and burst time in a tabular format
-        print(10*"-","given process data",10*"-")
+        # Validate input types
+        if not all(isinstance(at, (int, float)) for at in self.arrival_time):
+            raise ValueError("Arrival times must be integers or floats")
+        if not all(isinstance(bt, (int, float)) for bt in self.burst_time):
+            raise ValueError("Burst times must be integers or floats")
+
+        # Display input data
+        print(10 * "-", "Given Process Data", 10 * "-")
         table = prettytable.PrettyTable()
         table.field_names = ["Process", "Arrival Time", "Burst Time"]
         for i in range(len(self.process)):
             table.add_row([self.process[i], self.arrival_time[i], self.burst_time[i]])
-        print(table)
-        print()
-        
-    
-    def unique_at(self)->list:
-        """ returns unique arrival time in ascending order"""
-        unique_at = []
-        for at in self.arrival_time:
-            if at not in unique_at:
-                unique_at.append(at)
-        unique_at.sort()
-        return unique_at
-    
-    def at_mapping(self)-> dict:
-        """ returns mapping of arrival time and processess as a dictionary"""
-        for index, at in enumerate(self.arrival_time):
-            if at not in at_prcs_mapping:
-                at_prcs_mapping[at] = [self.process[index]]
-            else:
-                at_prcs_mapping[at].append(self.process[index])
-        return at_prcs_mapping
-    
-    def bt_mapping(self)->dict:
-        """ returns mapping of burst time and arrival time as a dictionary"""
-        for index, at in enumerate(self.arrival_time):
-            if at not in bt_at_mapping:
-                bt_at_mapping[at] = [self.burst_time[index]]
-            else:
-                bt_at_mapping[at].append(self.burst_time[index])
-        return bt_at_mapping
-    
-    def final_data(self,mapping:dict)->list:
-        """ returns a list of processess in the order of their arrival time or burst time"""
+        print(table, "\n")
+
+    def unique_at(self) -> List[float]:
+        """
+        Returns a sorted list of unique arrival times.
+
+        Returns:
+            A list of unique arrival times in ascending order.
+        """
+        return sorted(set(self.arrival_time))
+
+    def at_mapping(self) -> Dict[float, List[Tuple[str, float]]]:
+        """
+        Maps arrival times to lists of (process, burst time) tuples.
+
+        Returns:
+            A dictionary where keys are arrival times and values are lists of
+            (process, burst time) tuples.
+        """
+        self.at_prcs_mapping.clear()  # Prevent stale data
+        for i, at in enumerate(self.arrival_time):
+            if at not in self.at_prcs_mapping:
+                self.at_prcs_mapping[at] = []
+            self.at_prcs_mapping[at].append((self.process[i], self.burst_time[i]))
+        return self.at_prcs_mapping
+    # eg : {0: [("P1", 2)], 1: [("P2", 2)], 5: [("P3", 3)], 12: [("P4", 4)]}
+
+    def final_data(self, mapping: Dict[float, List[Tuple[str, float]]], key: str = "process") -> List[float | str]:
+        """
+        Converts a mapping into a flat list of processes or burst times ordered by arrival time.
+
+        Args:
+            mapping: Dictionary mapping arrival times to (process, burst time) tuples.
+            key: Either "process" (for process names) or "burst" (for burst times).
+
+        Returns:
+            A flat list of either process names or burst times in arrival order.
+        """
         listed_data = []
-        for prcs in self.unique_at():
-            listed_data.append(mapping[prcs])
-        data = [process for sublist in listed_data for process in sublist]
-        return data
-    
-    def check_halt(self,arrival_time:list, ct:list)->list:
-        """ returns index and value if any halt is present in the process order"""
-        correction_index = 0
-        correction_value = 0
+        for at in self.unique_at():
+            if at in mapping:
+                for proc, bt in mapping[at]:
+                    listed_data.append(proc if key == "process" else bt)
+        return listed_data
 
-        for at in range(len(ct)-1):
-            if arrival_time[at+1] > ct[at]:
-                correction_value = arrival_time[at+1] - ct[at]
-                correction_index = at+1            
-        return [correction_value, correction_index]
-            
-    def fcfs(self):
+    def fcfs(self) -> None:
         """
-        first come first serve short term shdeuling
+        Implements First-Come-First-Serve scheduling.
+
+        Computes completion, turnaround, and waiting times, and displays the schedule
+        with a process order (including halts) and a detailed table.
         """
-        execution_order = self.final_data(self.at_mapping()) # process order
-        process_ord = copy.deepcopy(execution_order) # process order for printing if correction is required
-        bt_ord = self.final_data(self.bt_mapping()) # burst time in the order of arrival time
-        
-        # calculating completion time of each process 
+        execution_order = self.final_data(self.at_mapping(), "process")
+        process_ord = copy.deepcopy(execution_order)
+        bt_ord = self.final_data(self.at_mapping(), "burst")
+
+        # Calculate completion times with halts
         ct = []
-        for j in bt_ord:
-            if ct:
-                temp = ct[-1] + j
-            else:
-                temp = j
-            ct.append(temp)    
-        
-        at = sorted(self.arrival_time) # sorted arrival time
-        crrction_val, crrction_index = self.check_halt(at, ct) # correction value and index
-        
-        # inserting halt for correction
-        if crrction_val == 0:
-            pass
-        else:
-            process_ord.insert(crrction_index,f"halt for {crrction_val} sec(s)")
+        current_time = 0
+        halt_count = 0
+        for i, (proc, bt) in enumerate(zip(execution_order, bt_ord)):
+            prcs_at = self.arrival_time[self.process.index(proc)]
+            # Check for halt before starting the process
+            if prcs_at > current_time:
+                halt_duration = prcs_at - current_time
+                process_ord.insert(i + halt_count, f"halt for {halt_duration} sec(s)")
+                halt_count += 1
+                current_time = prcs_at
+            # Process execution
+            current_time += bt
+            ct.append(current_time)
 
-        for correction in ct[crrction_index:]:
-            ct[crrction_index] += crrction_val
-            crrction_index += 1
-            
-        # printing process order
-        print("fcfs order: ",end="")
-        for process in process_ord:
-            if process == process_ord[-1]:
-                print(f"{process}",end="")
-            else:
-                print(f"{process} -> ",end="")
-        print();print()
+        # Calculate turnaround and waiting times
+        at_order = [self.arrival_time[self.process.index(p)] for p in execution_order]
+        tat_list = [c - a for c, a in zip(ct, at_order)]
+        wt_list = [max(0, t - b) for t, b in zip(tat_list, bt_ord)]
+        tat = sum(tat_list) / len(tat_list) if tat_list else 0
+        wt = sum(wt_list) / len(wt_list) if wt_list else 0
 
-        # list of turn around time for everyprocess
-        tat_list = [a-b for a,b in zip(ct,sorted(self.arrival_time))]
-        
-        # average turn around time
-        tat = sum(tat_list) / len(tat_list)
-        
-        # list of waiting time for each process
-        wt_list = [a-b for a,b in zip(tat_list,bt_ord)]
-        
-        # average waiting time
-        wt = sum(wt_list) / len(wt_list)
-        
-        # printing process, arival time, burst time, completion time, turn around time, waiting time
+        # Print process order
+        print("fcfs order: ", end="")
+        for proc in process_ord:
+            print(f"{proc}", end="" if proc == process_ord[-1] else " -> ")
+        print("\n")
+
+        # Print table
         table = prettytable.PrettyTable()
-        table.field_names = ["Process", "Arrival Time", "Burst Time", "Completion Time", "Turn around time", "waiting time"]
+        table.field_names = ["Process", "Arrival Time", "Burst Time", "Completion Time", "Turnaround Time", "Waiting Time"]
         for i in range(len(self.process)):
-            table.add_row([execution_order[i], at[i], bt_ord[i],ct[i],tat_list[i],wt_list[i]])
+            table.add_row([execution_order[i], at_order[i], bt_ord[i], ct[i], tat_list[i], wt_list[i]])
         print(table)
-        print(f"turn around time -> {tat}")
-        print(f"average waiting time was -> {wt}")
-        
-        
+        print(f"Average turnaround time: {tat:.2f}")
+        print(f"Average waiting time: {wt:.2f}")
+
     def sjf(self):
         """
         shortest job first: non-preemtive
@@ -158,10 +154,8 @@ class CpuSheduling():
         ...
                      
 if __name__ == "__main__":
-    prcs =["P1","P2","P3","P4"] #process
-    at = [0,1,5,12] # arrival time
-    bt = [2,2,3,4] # burst time
-    shedule = CpuSheduling(prcs,at,bt) 
-    shedule.fcfs()
- 
-        
+    prcs = ["P1", "P2", "P3", "P4","P5","P6"]
+    at = [4, 19, 2, 3,2, 2]
+    bt = [1, 2 ,7 ,1 ,2, 2]
+    s1 = CpuSheduling(prcs, at, bt)
+    s1.fcfs()
